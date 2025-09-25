@@ -42,6 +42,7 @@ create_config_dir() {
 save_config() {
     local subdomain="$1"
     local token="$2"
+    local device_id="$3"
     
     create_config_dir
     
@@ -49,7 +50,8 @@ save_config() {
     cat > /tmp/asnd_config.json << EOF
 {
     "subdomain": "$subdomain",
-    "token": "$token",
+    "nd_access_token": "$token",
+    "device_id": "$device_id",
     "configured_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
@@ -62,6 +64,18 @@ EOF
     echo "Configuration saved successfully!"
 }
 
+# Function to read existing configuration
+read_existing_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # Extract device_id from existing config
+        local device_id
+        device_id=$(grep -o '"device_id"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" 2>/dev/null | cut -d'"' -f4)
+        echo "$device_id"
+    else
+        echo ""
+    fi
+}
+
 # Function to verify configuration with AssetSonar
 verify_config() {
     local subdomain="$1"
@@ -69,21 +83,51 @@ verify_config() {
     
     echo "Verifying configuration with AssetSonar..."
     
+    # Check for existing device_id
+    local existing_device_id
+    existing_device_id=$(read_existing_config)
+    
     # Make POST request to verify endpoint
     local url="https://${subdomain}.assetsonar.com/api/api_integration/verify_network_discovery"
     local response_code
+    local response_body
     
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    # Create JSON payload with nd_access_token and optionally device_id
+    local json_payload
+    if [[ -n "$existing_device_id" ]]; then
+        json_payload="{\"nd_access_token\": \"$token\", \"device_id\": \"$existing_device_id\"}"
+        echo "Using existing device_id: $existing_device_id"
+    else
+        json_payload="{\"nd_access_token\": \"$token\"}"
+    fi
+    
+    # Make the request and capture both response code and body
+    local temp_file=$(mktemp)
+    response_code=$(curl -s -w "%{http_code}" \
         -X POST \
-        -H "Authorization: Bearer $token" \
         -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        -o "$temp_file" \
         "$url")
     
     if [[ "$response_code" == "200" ]]; then
-        echo "Configuration verified successfully!"
-        return 0
+        # Parse device_id from response
+        local device_id
+        device_id=$(cat "$temp_file" | grep -o '"device_id"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+        
+        if [[ -n "$device_id" ]]; then
+            echo "Configuration verified successfully! Device ID: $device_id"
+            echo "$device_id"  # Return device_id for saving
+            rm -f "$temp_file"
+            return 0
+        else
+            echo "Configuration verification failed: No device_id in response"
+            rm -f "$temp_file"
+            return 1
+        fi
     else
         echo "Configuration verification failed (HTTP $response_code)"
+        rm -f "$temp_file"
         return 1
     fi
 }
@@ -111,9 +155,13 @@ handle_config() {
         exit 1
     fi
     
-    # Verify configuration
-    if verify_config "$subdomain" "$token"; then
-        save_config "$subdomain" "$token"
+    # Verify configuration and capture device_id
+    local device_id
+    device_id=$(verify_config "$subdomain" "$token")
+    local verify_exit_code=$?
+    
+    if [[ $verify_exit_code -eq 0 && -n "$device_id" ]]; then
+        save_config "$subdomain" "$token" "$device_id"
     else
         echo "Configuration discarded due to verification failure"
         exit 1

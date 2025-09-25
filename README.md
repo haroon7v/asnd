@@ -47,11 +47,27 @@ The `config` subcommand allows you to configure ASND with your AssetSonar subdom
 The configuration process:
 
 1. Validates the subdomain format
-2. Makes a POST request to `https://{subdomain}.assetsonar.com/api/api_integration/verify_network_discovery`
-3. Saves the configuration to `/etc/asnd/config.json` if verification succeeds (HTTP 200)
-4. Discards the configuration if verification fails
+2. Checks for existing configuration file and extracts device_id if present
+3. Makes a POST request to `https://{subdomain}.assetsonar.com/api/api_integration/verify_network_discovery` with `nd_access_token` in request body
+4. If existing device_id is found, includes it in the request body as well
+5. Parses the `device_id` from the successful response (HTTP 200)
+6. Saves the configuration to `/etc/asnd/config.json` if verification succeeds
+7. Discards the configuration if verification fails or no device_id is returned
 
 **Note**: Configuration requires sudo privileges to write to `/etc/asnd/config.json`.
+
+### Configuration File Structure
+
+The configuration file `/etc/asnd/config.json` contains:
+
+```json
+{
+  "subdomain": "your-subdomain",
+  "nd_access_token": "your-api-token",
+  "device_id": "returned-device-id",
+  "configured_at": "2024-09-25T12:00:00Z"
+}
+```
 
 ## Package Information
 

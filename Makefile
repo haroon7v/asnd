@@ -57,7 +57,7 @@ build:
 	@echo ".SH FILES" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".TP" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "/etc/asnd/config.json" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
-	@echo "Configuration file containing subdomain and token" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "Configuration file containing subdomain, nd_access_token, and device_id" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH AUTHOR" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "EZO AssetSonar <support@assetsonar.com>" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	
