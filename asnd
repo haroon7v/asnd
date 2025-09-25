@@ -1,19 +1,23 @@
 #!/bin/bash
 
-# ASND - A Simple Network Daemon
+# ASND - AssetSonar Network Discovery
 # Version: 1.0.0
+# Maintainer: EZO AssetSonar <support@assetsonar.com>
 
 # Function to display help
 show_help() {
-    echo "ASND - A Simple Network Daemon"
+    echo "ASND - AssetSonar Network Discovery"
     echo ""
     echo "Usage: asnd [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --help              Show this help message"
     echo ""
-    echo "This is a simple network daemon utility."
-    echo "More functionality will be added in future versions."
+    echo "AssetSonar Network Discovery is a package used to setup network discovery"
+    echo "server on any on-premises server. It communicates with AssetSonar to sync"
+    echo "network devices data."
+    echo ""
+    echo "Maintained by: EZO AssetSonar <support@assetsonar.com>"
 }
 
 # Parse command line arguments

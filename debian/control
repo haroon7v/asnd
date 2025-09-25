@@ -1,14 +1,17 @@
 Source: asnd
 Section: utils
 Priority: optional
-Maintainer: Your Name <your.email@example.com>
+Maintainer: EZO AssetSonar <support@assetsonar.com>
 Build-Depends: debhelper (>= 9)
 Standards-Version: 4.1.4
-Homepage: https://github.com/yourusername/asnd
+Homepage: https://github.com/haroon7v/asnd
 
 Package: asnd
 Architecture: all
 Depends: ${misc:Depends}
-Description: ASND - A Simple Network Daemon
- A simple command-line utility that provides network functionality.
- This package installs the 'asnd' command to the system PATH.
+Description: ASND - AssetSonar Network Discovery
+  AssetSonar Network Discovery is a package used to setup network discovery
+  server on any on-premises server. It communicates with AssetSonar to sync
+  network devices data.
+  .
+  This package installs the 'asnd' command to the system PATH.

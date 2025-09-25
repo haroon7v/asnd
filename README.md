@@ -1,6 +1,8 @@
-# ASND - A Simple Network Daemon
+# ASND - AssetSonar Network Discovery
 
-A simple command-line utility that provides basic network server functionality.
+AssetSonar Network Discovery is a package used to setup network discovery server on any on-premises server. It communicates with AssetSonar to sync network devices data.
+
+**Maintained by:** EZO AssetSonar <support@assetsonar.com>
 
 ## Building the Debian Package
 
@@ -38,7 +40,7 @@ asnd --help
 - **Version**: 1.0.0
 - **Architecture**: all (architecture independent)
 - **Section**: utils
-- **Maintainer**: Your Name <your.email@example.com>
+- **Maintainer**: EZO AssetSonar <support@assetsonar.com>
 
 ## Files Installed
 

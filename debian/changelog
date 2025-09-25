@@ -1,9 +1,9 @@
 asnd (1.0.0-1) unstable; urgency=medium
 
-  * Initial release of ASND
-  * A Simple Network Daemon utility
-  * Provides basic server functionality with configurable host and port
-  * Includes command-line options for customization
+  * Initial release of ASND - AssetSonar Network Discovery
+  * Network discovery server package for on-premises deployment
+  * Communicates with AssetSonar to sync network devices data
   * Installs asnd command to system PATH
+  * Basic help functionality included
 
- -- Your Name <your.email@example.com>  Mon, 01 Jan 2024 12:00:00 +0000
+ -- EZO AssetSonar <support@assetsonar.com>  Wed, 25 Sep 2024 12:00:00 +0000

@@ -35,16 +35,20 @@ build:
 	# Create man page
 	@echo ".TH ASND 1 \"$(shell date '+%B %Y')\" \"ASND $(VERSION)\" \"User Commands\"" > $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH NAME" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
-	@echo "asnd \\- A Simple Network Daemon" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "asnd \\- AssetSonar Network Discovery" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH SYNOPSIS" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".B asnd" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "[\\fB\\-\\-help\\fR]" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH DESCRIPTION" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
-	@echo "ASND is a simple network daemon utility. More functionality will be added in future versions." >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "AssetSonar Network Discovery is a package used to setup network discovery" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "server on any on-premises server. It communicates with AssetSonar to sync" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "network devices data." >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH OPTIONS" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".TP" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".B \\-\\-help" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "Show help message" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo ".SH AUTHOR" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "EZO AssetSonar <support@assetsonar.com>" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	
 	# Set permissions
 	chmod 755 $(DEB_DIR)/usr/bin/asnd
