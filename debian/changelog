@@ -1,0 +1,9 @@
+asnd (1.0.0-1) unstable; urgency=medium
+
+  * Initial release of ASND
+  * A Simple Network Daemon utility
+  * Provides basic server functionality with configurable host and port
+  * Includes command-line options for customization
+  * Installs asnd command to system PATH
+
+ -- Your Name <your.email@example.com>  Mon, 01 Jan 2024 12:00:00 +0000

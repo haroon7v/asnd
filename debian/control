@@ -1,0 +1,14 @@
+Source: asnd
+Section: utils
+Priority: optional
+Maintainer: Your Name <your.email@example.com>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 4.1.4
+Homepage: https://github.com/yourusername/asnd
+
+Package: asnd
+Architecture: all
+Depends: ${misc:Depends}
+Description: ASND - A Simple Network Daemon
+ A simple command-line utility that provides network functionality.
+ This package installs the 'asnd' command to the system PATH.

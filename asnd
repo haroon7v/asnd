@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# ASND - A Simple Network Daemon
+# Version: 1.0.0
+
+# Function to display help
+show_help() {
+    echo "ASND - A Simple Network Daemon"
+    echo ""
+    echo "Usage: asnd [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --help              Show this help message"
+    echo ""
+    echo "This is a simple network daemon utility."
+    echo "More functionality will be added in future versions."
+}
+
+# Parse command line arguments
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+fi
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    configure)
+        # Make sure the binary is executable
+        chmod +x /usr/bin/asnd
+        
+        # Update the alternatives system if needed
+        update-alternatives --install /usr/bin/asnd asnd /usr/bin/asnd 100 \
+            --slave /usr/share/man/man1/asnd.1 asnd.1 /usr/share/man/man1/asnd.1 || true
+        
+        echo "ASND command has been installed successfully."
+        echo "You can now use 'asnd' from anywhere in your terminal."
+        ;;
+esac
+
+exit 0
