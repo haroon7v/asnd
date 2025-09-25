@@ -4,14 +4,22 @@
 # Version: 1.0.0
 # Maintainer: EZO AssetSonar <support@assetsonar.com>
 
+# Configuration file path
+CONFIG_FILE="/etc/asnd/config.json"
+
 # Function to display help
 show_help() {
     echo "ASND - AssetSonar Network Discovery"
     echo ""
-    echo "Usage: asnd [OPTIONS]"
+    echo "Usage: asnd [COMMAND] [OPTIONS]"
     echo ""
-    echo "Options:"
-    echo "  --help              Show this help message"
+    echo "Commands:"
+    echo "  config <subdomain> <token>    Configure ASND with subdomain and token"
+    echo "  --help                       Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  asnd config mysubdomain mytoken123"
+    echo "  asnd --help"
     echo ""
     echo "AssetSonar Network Discovery is a package used to setup network discovery"
     echo "server on any on-premises server. It communicates with AssetSonar to sync"
@@ -20,22 +28,116 @@ show_help() {
     echo "Maintained by: EZO AssetSonar <support@assetsonar.com>"
 }
 
+# Function to create config directory
+create_config_dir() {
+    local config_dir=$(dirname "$CONFIG_FILE")
+    if [[ ! -d "$config_dir" ]]; then
+        sudo mkdir -p "$config_dir"
+        sudo chown root:root "$config_dir"
+        sudo chmod 755 "$config_dir"
+    fi
+}
+
+# Function to save configuration
+save_config() {
+    local subdomain="$1"
+    local token="$2"
+    
+    create_config_dir
+    
+    # Create JSON configuration
+    cat > /tmp/asnd_config.json << EOF
+{
+    "subdomain": "$subdomain",
+    "token": "$token",
+    "configured_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+    
+    # Move to final location with proper permissions
+    sudo mv /tmp/asnd_config.json "$CONFIG_FILE"
+    sudo chown root:root "$CONFIG_FILE"
+    sudo chmod 600 "$CONFIG_FILE"
+    
+    echo "Configuration saved successfully!"
+}
+
+# Function to verify configuration with AssetSonar
+verify_config() {
+    local subdomain="$1"
+    local token="$2"
+    
+    echo "Verifying configuration with AssetSonar..."
+    
+    # Make POST request to verify endpoint
+    local url="https://${subdomain}.assetsonar.com/api/api_integration/verify_network_discovery"
+    local response_code
+    
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X POST \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        "$url")
+    
+    if [[ "$response_code" == "200" ]]; then
+        echo "Configuration verified successfully!"
+        return 0
+    else
+        echo "Configuration verification failed (HTTP $response_code)"
+        return 1
+    fi
+}
+
+# Function to handle config command
+handle_config() {
+    if [[ $# -lt 2 ]]; then
+        echo "Error: config command requires subdomain and token"
+        echo "Usage: asnd config <subdomain> <token>"
+        exit 1
+    fi
+    
+    local subdomain="$1"
+    local token="$2"
+    
+    # Validate subdomain (basic validation)
+    if [[ ! "$subdomain" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$ ]]; then
+        echo "Error: Invalid subdomain format"
+        exit 1
+    fi
+    
+    # Validate token (basic validation - not empty)
+    if [[ -z "$token" ]]; then
+        echo "Error: Token cannot be empty"
+        exit 1
+    fi
+    
+    # Verify configuration
+    if verify_config "$subdomain" "$token"; then
+        save_config "$subdomain" "$token"
+    else
+        echo "Configuration discarded due to verification failure"
+        exit 1
+    fi
+}
+
 # Parse command line arguments
 if [[ $# -eq 0 ]]; then
     show_help
     exit 0
 fi
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --help)
-            show_help
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            echo "Use --help for usage information"
-            exit 1
-            ;;
-    esac
-done
+case "$1" in
+    config)
+        shift
+        handle_config "$@"
+        ;;
+    --help)
+        show_help
+        exit 0
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use --help for usage information"
+        exit 1
+        ;;
+esac

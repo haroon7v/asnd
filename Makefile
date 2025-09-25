@@ -24,6 +24,7 @@ build:
 	# Create package directory
 	mkdir -p $(DEB_DIR)/usr/bin
 	mkdir -p $(DEB_DIR)/usr/share/man/man1
+	mkdir -p $(DEB_DIR)/etc/asnd
 	mkdir -p $(DEB_DIR)/DEBIAN
 	
 	# Copy files
@@ -39,14 +40,24 @@ build:
 	@echo ".SH SYNOPSIS" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".B asnd" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "[\\fB\\-\\-help\\fR]" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo ".B asnd" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "\\fBconfig\\fR \\fIsubdomain\\fR \\fItoken\\fR" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH DESCRIPTION" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "AssetSonar Network Discovery is a package used to setup network discovery" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "server on any on-premises server. It communicates with AssetSonar to sync" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "network devices data." >> $(DEB_DIR)/usr/share/man/man1/asnd.1
-	@echo ".SH OPTIONS" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo ".SH COMMANDS" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".TP" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".B \\-\\-help" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "Show help message" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo ".TP" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo ".B config \\fIsubdomain\\fR \\fItoken\\fR" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "Configure ASND with subdomain and token. Verifies configuration with" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "AssetSonar before saving." >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo ".SH FILES" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo ".TP" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "/etc/asnd/config.json" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "Configuration file containing subdomain and token" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH AUTHOR" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "EZO AssetSonar <support@assetsonar.com>" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	

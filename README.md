@@ -32,7 +32,26 @@ asnd
 
 # Show help message (explicit)
 asnd --help
+
+# Configure ASND with subdomain and token
+asnd config mysubdomain mytoken123
 ```
+
+### Configuration
+
+The `config` subcommand allows you to configure ASND with your AssetSonar subdomain and token:
+
+- **Subdomain**: Your AssetSonar subdomain (e.g., `mysubdomain` for `mysubdomain.assetsonar.com`)
+- **Token**: Your AssetSonar API token for network discovery
+
+The configuration process:
+
+1. Validates the subdomain format
+2. Makes a POST request to `https://{subdomain}.assetsonar.com/api/api_integration/verify_network_discovery`
+3. Saves the configuration to `/etc/asnd/config.json` if verification succeeds (HTTP 200)
+4. Discards the configuration if verification fails
+
+**Note**: Configuration requires sudo privileges to write to `/etc/asnd/config.json`.
 
 ## Package Information
 
