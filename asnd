@@ -5,7 +5,7 @@
 # Maintainer: EZO AssetSonar <support@assetsonar.com>
 
 # Configuration file path
-CONFIG_FILE="/etc/asnd/config.json"
+CONFIG_FILE="/etc/asnd/config.ini"
 
 # Function to display help
 show_help() {
@@ -46,18 +46,22 @@ save_config() {
     
     create_config_dir
     
-    # Create JSON configuration
-    cat > /tmp/asnd_config.json << EOF
-{
-    "subdomain": "$subdomain",
-    "nd_access_token": "$token",
-    "device_id": "$device_id",
-    "configured_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
+    # Create INI configuration
+    cat > /tmp/asnd_config.ini << EOF
+[Assetsonar]
+url = https://${subdomain}.assetsonar.com
+tag = ${device_id}
+
+[OpenAudit]
+sync_enabled = true
+url = http://localhost/open-audit/index.php
+username = admin
+password = password
+system_id = ${device_id}
 EOF
     
     # Move to final location with proper permissions
-    sudo mv /tmp/asnd_config.json "$CONFIG_FILE"
+    sudo mv /tmp/asnd_config.ini "$CONFIG_FILE"
     sudo chown root:root "$CONFIG_FILE"
     sudo chmod 600 "$CONFIG_FILE"
     
@@ -67,9 +71,9 @@ EOF
 # Function to read existing configuration
 read_existing_config() {
     if [[ -f "$CONFIG_FILE" ]]; then
-        # Extract device_id from existing config
+        # Extract device_id from INI config (from either Assetsonar tag or OpenAudit system_id)
         local device_id
-        device_id=$(grep -o '"device_id"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" 2>/dev/null | cut -d'"' -f4)
+        device_id=$(grep -E "^(tag|system_id)[[:space:]]*=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d ' ')
         echo "$device_id"
     else
         echo ""

@@ -51,22 +51,26 @@ The configuration process:
 3. Makes a POST request to `https://{subdomain}.assetsonar.com/api/api_integration/verify_network_discovery` with `nd_access_token` in request body
 4. If existing device_id is found, includes it in the request body as well
 5. Parses the `device_id` from the successful response (HTTP 200)
-6. Saves the configuration to `/etc/asnd/config.json` if verification succeeds
+6. Saves the configuration to `/etc/asnd/config.ini` if verification succeeds
 7. Discards the configuration if verification fails or no device_id is returned
 
-**Note**: Configuration requires sudo privileges to write to `/etc/asnd/config.json`.
+**Note**: Configuration requires sudo privileges to write to `/etc/asnd/config.ini`.
 
 ### Configuration File Structure
 
-The configuration file `/etc/asnd/config.json` contains:
+The configuration file `/etc/asnd/config.ini` contains:
 
-```json
-{
-  "subdomain": "your-subdomain",
-  "nd_access_token": "your-api-token",
-  "device_id": "returned-device-id",
-  "configured_at": "2024-09-25T12:00:00Z"
-}
+```ini
+[Assetsonar]
+url = https://your-subdomain.assetsonar.com
+tag = returned-device-id
+
+[OpenAudit]
+sync_enabled = true
+url = http://localhost/open-audit/index.php
+username = admin
+password = password
+system_id = returned-device-id
 ```
 
 ## Package Information
