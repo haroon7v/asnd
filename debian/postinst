@@ -7,12 +7,22 @@ case "$1" in
         # Make sure the binary is executable
         chmod +x /usr/bin/asnd
         
+        # Set permissions for AssetSonar connector files
+        chmod +x /opt/assetsonar-connector/scripts/*.sh
+        chmod +x /opt/assetsonar-connector/bin/assetsonar_syncer
+        
+        # Create required directories
+        mkdir -p /var/lib/assetsonar-connector
+        mkdir -p /var/log/assetsonar-connector
+        
         # Update the alternatives system if needed
         update-alternatives --install /usr/bin/asnd asnd /usr/bin/asnd 100 \
             --slave /usr/share/man/man1/asnd.1 asnd.1 /usr/share/man/man1/asnd.1 || true
         
         echo "ASND command has been installed successfully."
+        echo "AssetSonar connector files have been installed to /opt/assetsonar-connector/"
         echo "You can now use 'asnd' from anywhere in your terminal."
+        echo "Run 'asnd init' to complete the setup process."
         ;;
 esac
 

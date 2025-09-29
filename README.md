@@ -12,7 +12,18 @@ To build the Debian package, simply run:
 make
 ```
 
-This will create a `.deb` package in the `build/` directory.
+This will:
+
+1. Fetch the latest AssetSonar connector from the git repository
+2. Create a `.deb` package in the `build/` directory
+
+**Note**: The build process automatically fetches the `assetsonar-connector` directory from the master branch of the [open_audit_linux_connector](https://github.com/haroon7v/open_audit_linux_connector) repository.
+
+### Build Requirements
+
+- **Git**: Required to fetch the AssetSonar connector from the repository
+- **Internet Connection**: Needed to clone the repository during build
+- **Standard Debian Build Tools**: dpkg-dev, build-essential
 
 ## Installing the Package
 
@@ -35,6 +46,9 @@ asnd --help
 
 # Configure ASND with subdomain and token
 asnd config mysubdomain mytoken123
+
+# Initialize ASND (requires config to be set up first)
+asnd init
 ```
 
 ### Configuration
@@ -72,6 +86,53 @@ username = admin
 password = password
 system_id = returned-device-id
 ```
+
+### Initialization
+
+The `init` subcommand initializes ASND and performs necessary setup:
+
+- **Prerequisites**: Requires the configuration file to be set up first using the `config` command
+- **Configuration Validation**: Checks if the configuration file exists and contains valid Assetsonar and OpenAudit sections
+- **OpenAudit Setup**: Invokes the OpenAudit `setup.sh` script and waits for completion
+- **AssetSonar Connector Setup**: Installs required dependencies (ruby-full, build-essential, and bundler gem) and configures the connector (files installed by package)
+- **Error Handling**: Halts execution if any step fails (config missing/invalid or setup.sh fails)
+
+**Usage:**
+
+```bash
+asnd init
+```
+
+**Process Flow:**
+
+1. Validates configuration file presence and format
+2. Runs OpenAudit setup script (`setup.sh`)
+3. Installs required dependencies for AssetSonar connector (ruby-full, build-essential, and bundler gem)
+4. Configures AssetSonar connector (files already installed by package)
+5. Sets up cron jobs for automated syncing
+6. Waits for setup completion and checks exit status
+7. Reports success or failure
+
+**Dependencies:**
+The `init` command automatically installs required dependencies for the AssetSonar connector:
+
+- **ruby-full**: Complete Ruby development environment
+- **build-essential**: Essential build tools (gcc, make, etc.)
+- **bundler**: Ruby gem dependency manager
+
+**Supported Systems:**
+
+- **Debian/Ubuntu**: Uses `apt-get` to install packages
+- **Other systems**: Not supported - requires Debian/Ubuntu with apt-get
+
+**Note**: The `init` command must be run after successful configuration. It will fail if:
+
+- The configuration file is not present or corrupted
+- The OpenAudit setup script (`setup.sh`) is not found
+- The setup script exits with a non-zero status
+- Required dependencies (ruby-full, build-essential, bundler gem) cannot be installed
+- AssetSonar connector files not found (package installation issue)
+- System is not Debian/Ubuntu (requires apt-get)
 
 ## Package Information
 

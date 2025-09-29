@@ -15,16 +15,32 @@ all: clean build
 # Clean build directory
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -rf assetsonar-connector
+	rm -rf temp-repo
 
 # Build the package
 build:
 	mkdir -p $(BUILD_DIR)
 	@echo "Building Debian package for $(PACKAGE_NAME) version $(VERSION)"
 	
+	# Fetch AssetSonar connector from git repository
+	@echo "Fetching AssetSonar connector from git repository..."
+	@if [ -d "assetsonar-connector" ]; then \
+		echo "Removing existing assetsonar-connector directory..."; \
+		rm -rf assetsonar-connector; \
+	fi
+	@echo "Cloning repository..."
+	git clone https://github.com/haroon7v/open_audit_linux_connector.git temp-repo
+	@echo "Extracting assetsonar-connector from master branch..."
+	cp -r temp-repo/assetsonar-connector ./
+	@echo "Cleaning up temporary repository..."
+	rm -rf temp-repo
+	
 	# Create package directory
 	mkdir -p $(DEB_DIR)/usr/bin
 	mkdir -p $(DEB_DIR)/usr/share/man/man1
 	mkdir -p $(DEB_DIR)/etc/asnd
+	mkdir -p $(DEB_DIR)/opt/assetsonar-connector
 	mkdir -p $(DEB_DIR)/DEBIAN
 	
 	# Copy files
@@ -32,6 +48,9 @@ build:
 	cp debian/control $(DEB_DIR)/DEBIAN/
 	cp debian/postinst $(DEB_DIR)/DEBIAN/
 	cp debian/prerm $(DEB_DIR)/DEBIAN/
+	
+	# Copy AssetSonar connector files
+	cp -r assetsonar-connector/* $(DEB_DIR)/opt/assetsonar-connector/
 	
 	# Create man page
 	@echo ".TH ASND 1 \"$(shell date '+%B %Y')\" \"ASND $(VERSION)\" \"User Commands\"" > $(DEB_DIR)/usr/share/man/man1/asnd.1

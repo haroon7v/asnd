@@ -15,10 +15,12 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  config <subdomain> <token>    Configure ASND with subdomain and token"
+    echo "  init                         Initialize ASND (requires config to be set up)"
     echo "  --help                       Show this help message"
     echo ""
     echo "Examples:"
     echo "  asnd config mysubdomain mytoken123"
+    echo "  asnd init"
     echo "  asnd --help"
     echo ""
     echo "AssetSonar Network Discovery is a package used to setup network discovery"
@@ -136,6 +138,105 @@ verify_config() {
     fi
 }
 
+# Function to check if config file exists and is valid
+check_config_exists() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo "Error: Configuration file not found at $CONFIG_FILE"
+        echo "Please run 'asnd config <subdomain> <token>' first to configure ASND"
+        return 1
+    fi
+    
+    # Basic validation - check if file has required sections
+    if ! grep -q "^\[Assetsonar\]" "$CONFIG_FILE" || ! grep -q "^\[OpenAudit\]" "$CONFIG_FILE"; then
+        echo "Error: Configuration file is invalid or corrupted"
+        echo "Please run 'asnd config <subdomain> <token>' to reconfigure ASND"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to handle init command
+handle_init() {
+    echo "Initializing ASND..."
+    
+    # Check if config file exists and is valid
+    if ! check_config_exists; then
+        exit 1
+    fi
+    
+    echo "Configuration file found and valid"
+    
+    # Setup OpenAudit
+    echo "Setting up OpenAudit..."
+    if [[ -f "setup.sh" ]]; then
+        echo "Running OpenAudit setup script..."
+        if bash setup.sh; then
+            echo "OpenAudit setup completed successfully"
+        else
+            echo "Error: OpenAudit setup failed with non-zero exit status"
+            exit 1
+        fi
+    else
+        echo "Error: OpenAudit setup script (setup.sh) not found"
+        exit 1
+    fi
+    
+    # Setup AssetSonar connector for OpenAudit
+    echo "Setting up AssetSonar connector for OpenAudit..."
+    
+    # Install required dependencies
+    echo "Installing required dependencies (ruby-full, build-essential, and bundler gem)..."
+    if command -v apt-get >/dev/null 2>&1; then
+        # Debian/Ubuntu system
+        if sudo apt-get update && sudo apt-get install -y ruby-full build-essential; then
+            echo "System dependencies installed successfully"
+            
+            # Install bundler gem
+            echo "Installing bundler gem..."
+            if gem install bundler; then
+                echo "Bundler gem installed successfully"
+            else
+                echo "Error: Failed to install bundler gem"
+                exit 1
+            fi
+        else
+            echo "Error: Failed to install system dependencies"
+            exit 1
+        fi
+    else
+        echo "Error: Unsupported system. This package requires Debian/Ubuntu with apt-get"
+        exit 1
+    fi
+    
+    # Setup AssetSonar connector (files already installed by package)
+    echo "Setting up AssetSonar connector..."
+    
+    # Check if connector files exist (installed by package)
+    if [[ ! -d "/opt/assetsonar-connector" ]]; then
+        echo "Error: AssetSonar connector not found. Please reinstall the package."
+        exit 1
+    fi
+    
+    # Remove existing cron jobs
+    echo "Removing existing cron jobs..."
+    crontab -l 2>/dev/null | grep -v '/opt/assetsonar-connector' | crontab -
+    
+    # Setup cron jobs
+    echo "Setting up cron jobs..."
+    command_sync="/opt/assetsonar-connector/bin/assetsonar_syncer -s"
+    command_execute="/opt/assetsonar-connector/bin/assetsonar_syncer -e"
+    
+    # Add sync cron job (every hour)
+    eval "crontab -l 2>/dev/null | { cat; echo '0 * * * * $command_sync'; } | crontab -"
+    
+    # Add execute cron job (every hour)
+    eval "crontab -l 2>/dev/null | { cat; echo '0 * * * * $command_execute'; } | crontab -"
+    
+    echo "AssetSonar connector setup completed successfully"
+    echo "ASND initialization completed successfully"
+}
+
 # Function to handle config command
 handle_config() {
     if [[ $# -lt 2 ]]; then
@@ -182,6 +283,10 @@ case "$1" in
     config)
         shift
         handle_config "$@"
+        ;;
+    init)
+        shift
+        handle_init "$@"
         ;;
     --help)
         show_help

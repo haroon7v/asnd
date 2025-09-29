@@ -1,5 +1,5 @@
-# Build directory
-build/
+# AssetSonar connector (fetched from git repo during build)
+assetsonar-connector/
 
 # Debian package files
 *.deb
