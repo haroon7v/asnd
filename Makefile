@@ -30,7 +30,7 @@ build:
 		rm -rf assetsonar-connector; \
 	fi
 	@echo "Cloning repository..."
-	git clone https://github.com/haroon7v/open_audit_linux_connector.git temp-repo
+	git clone git@github.com:haroon7v/open_audit_linux_connector.git temp-repo
 	@echo "Extracting assetsonar-connector from master branch..."
 	cp -r temp-repo/assetsonar-connector ./
 	@echo "Cleaning up temporary repository..."
