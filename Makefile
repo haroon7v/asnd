@@ -17,6 +17,9 @@ clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf assetsonar-connector
 	rm -rf temp-repo
+	rm -rf open-audit
+	rm -rf temp-open-audit
+	rm -f open-audit-setup.run
 
 # Build the package
 build:
@@ -41,6 +44,7 @@ build:
 	mkdir -p $(DEB_DIR)/usr/share/man/man1
 	mkdir -p $(DEB_DIR)/etc/asnd
 	mkdir -p $(DEB_DIR)/opt/assetsonar-connector
+	mkdir -p $(DEB_DIR)/opt/asnd-setup
 	mkdir -p $(DEB_DIR)/DEBIAN
 	
 	# Copy files
@@ -51,6 +55,28 @@ build:
 	
 	# Copy AssetSonar connector files
 	cp -r assetsonar-connector/* $(DEB_DIR)/opt/assetsonar-connector/
+	
+	# Build and copy Open-AudIT setup script
+	@echo "Building Open-AudIT setup script..."
+	@if [ -d "open-audit" ]; then \
+		echo "Removing existing open-audit directory..."; \
+		rm -rf open-audit; \
+	fi
+	@echo "Cloning Open-AudIT repository..."
+	sh -c "git clone -b feature/46142_network_discovery_setup_improvements https://github.com/bk-az/open-audit.git temp-open-audit"
+	@echo "Extracting open-audit from feature branch..."
+	cp -r temp-open-audit ./open-audit
+	@echo "Cleaning up temporary repository..."
+	rm -rf temp-open-audit
+	@echo "Building Open-AudIT setup script with makeself..."
+	makeself \
+		"--tar-extra" \
+		"--exclude=.git --exclude=.fuse* --exclude=.phpunit.result.cache --exclude=._spark --exclude=.gitignore" \
+		"./open-audit" \
+		"$(DEB_DIR)/opt/asnd-setup/open-audit-setup.run" \
+		"Open-AudIT 5.6.5" \
+		"./install.sh"
+	@echo "Open-AudIT setup script built successfully"
 	
 	# Create man page
 	@echo ".TH ASND 1 \"$(shell date '+%B %Y')\" \"ASND $(VERSION)\" \"User Commands\"" > $(DEB_DIR)/usr/share/man/man1/asnd.1

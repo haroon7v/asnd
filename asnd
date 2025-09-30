@@ -169,16 +169,16 @@ handle_init() {
     
     # Setup OpenAudit
     echo "Setting up OpenAudit..."
-    if [[ -f "setup.sh" ]]; then
+    if [[ -f "/opt/asnd-setup/open-audit-setup.run" ]]; then
         echo "Running OpenAudit setup script..."
-        if bash setup.sh; then
+        if bash /opt/asnd-setup/open-audit-setup.run; then
             echo "OpenAudit setup completed successfully"
         else
             echo "Error: OpenAudit setup failed with non-zero exit status"
             exit 1
         fi
     else
-        echo "Error: OpenAudit setup script (setup.sh) not found"
+        echo "Error: OpenAudit setup script (open-audit-setup.run) not found"
         exit 1
     fi
     
