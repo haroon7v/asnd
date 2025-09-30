@@ -23,15 +23,48 @@ This will:
 
 - **Git**: Required to fetch the AssetSonar connector from the repository
 - **Internet Connection**: Needed to clone the repository during build
-- **Standard Debian Build Tools**: dpkg-dev, build-essential
+- **Standard Debian Build Tools**: dpkg-dev, build-essential, make
+
+### Runtime Dependencies (Installed Automatically)
+
+When users install the package, these dependencies are automatically installed:
+
+- **ruby-full**: Complete Ruby development environment
+- **build-essential**: Essential build tools (gcc, make, etc.)
+- **bundler**: Ruby gem dependency manager
+- **curl**: HTTP client for API communication
+- **cron**: Task scheduler for automated syncing
 
 ## Installing the Package
 
-To install the package on your system:
+### For End Users
+
+Simply install the `.deb` package using apt (recommended):
 
 ```bash
-sudo dpkg -i build/asnd_1.0.0-1_all.deb
+sudo apt install ./asnd_1.0.0-1_all.deb
 ```
+
+**apt will automatically install all required dependencies** before installing the ASND package.
+
+### Alternative Installation Methods
+
+#### Using dpkg (if apt is not available)
+
+If you must use `dpkg -i`, first install dependencies manually:
+
+```bash
+sudo apt install ruby-full build-essential bundler curl cron
+sudo dpkg -i asnd_1.0.0-1_all.deb
+```
+
+#### Using gdebi (GUI alternative)
+
+```bash
+sudo gdebi asnd_1.0.0-1_all.deb
+```
+
+**Note**: The package declares all its dependencies in the control file, so any modern package manager will automatically resolve and install them.
 
 ## Using ASND
 

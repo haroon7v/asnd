@@ -4,11 +4,6 @@ set -e
 
 case "$1" in
     configure)
-        # Install curl dependency
-        echo "Installing curl dependency..."
-        apt-get update
-        apt-get install -y curl
-        
         # Make sure the binary is executable
         chmod +x /usr/bin/asnd
         

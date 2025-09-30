@@ -185,30 +185,6 @@ handle_init() {
     # Setup AssetSonar connector for OpenAudit
     echo "Setting up AssetSonar connector for OpenAudit..."
     
-    # Install required dependencies
-    echo "Installing required dependencies (ruby-full, build-essential, and bundler gem)..."
-    if command -v apt-get >/dev/null 2>&1; then
-        # Debian/Ubuntu system
-        if sudo apt-get update && sudo apt-get install -y ruby-full build-essential; then
-            echo "System dependencies installed successfully"
-            
-            # Install bundler gem
-            echo "Installing bundler gem..."
-            if gem install bundler; then
-                echo "Bundler gem installed successfully"
-            else
-                echo "Error: Failed to install bundler gem"
-                exit 1
-            fi
-        else
-            echo "Error: Failed to install system dependencies"
-            exit 1
-        fi
-    else
-        echo "Error: Unsupported system. This package requires Debian/Ubuntu with apt-get"
-        exit 1
-    fi
-    
     # Setup AssetSonar connector (files already installed by package)
     echo "Setting up AssetSonar connector..."
     

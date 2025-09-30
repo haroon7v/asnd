@@ -101,14 +101,18 @@ build:
 	@echo "Package built successfully: $(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)_all.deb"
 	@echo ""
 	@echo "To install the package, run:"
-	@echo "  sudo dpkg -i $(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)_all.deb"
+	@echo "  sudo apt install ./$(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)_all.deb"
+	@echo ""
+	@echo "Note: Use 'apt install' instead of 'dpkg -i' to automatically resolve dependencies."
+	@echo "If you must use dpkg -i, first install dependencies manually:"
+	@echo "  sudo apt install curl ruby ruby-dev gcc make bundler"
 	@echo ""
 	@echo "To remove the package, run:"
 	@echo "  sudo dpkg -r $(PACKAGE_NAME)"
 
 # Install the package (requires sudo)
 install: build
-	sudo dpkg -i $(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)_all.deb
+	sudo apt install ./$(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)_all.deb
 
 # Remove the package (requires sudo)
 uninstall:
