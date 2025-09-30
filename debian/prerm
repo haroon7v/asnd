@@ -4,9 +4,6 @@ set -e
 
 case "$1" in
     remove|upgrade|deconfigure)
-        # Remove from alternatives system
-        update-alternatives --remove asnd /usr/bin/asnd || true
-        
         echo "ASND command has been removed from the system."
         ;;
 esac

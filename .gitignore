@@ -1,6 +1,9 @@
 # AssetSonar connector (fetched from git repo during build)
 assetsonar-connector/
 
+# build
+build/
+
 # Debian package files
 *.deb
 *.dsc
