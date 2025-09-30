@@ -73,9 +73,9 @@ EOF
 # Function to read existing configuration
 read_existing_config() {
     if [[ -f "$CONFIG_FILE" ]]; then
-        # Extract device_id from INI config (from either Assetsonar tag or OpenAudit system_id)
+        # Extract device_id from INI config (use sudo to read root-owned file)
         local device_id
-        device_id=$(grep -E "^(tag|system_id)[[:space:]]*=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d ' ')
+        device_id=$(sudo grep -E "^(tag|system_id)[[:space:]]*=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d ' ')
         echo "$device_id"
     else
         echo ""
@@ -111,7 +111,6 @@ verify_config() {
     local temp_file=$(mktemp)
     response_code=$(curl -s -w "%{http_code}" \
         -X POST \
-        -H "Content-Type: application/json" \
         -d "$json_payload" \
         -o "$temp_file" \
         "$url")
@@ -146,8 +145,8 @@ check_config_exists() {
         return 1
     fi
     
-    # Basic validation - check if file has required sections
-    if ! grep -q "^\[Assetsonar\]" "$CONFIG_FILE" || ! grep -q "^\[OpenAudit\]" "$CONFIG_FILE"; then
+    # Basic validation - check if file has required sections (use sudo to read root-owned file)
+    if ! sudo grep -q "^\[Assetsonar\]" "$CONFIG_FILE" || ! sudo grep -q "^\[OpenAudit\]" "$CONFIG_FILE"; then
         echo "Error: Configuration file is invalid or corrupted"
         echo "Please run 'asnd config <subdomain> <token>' to reconfigure ASND"
         return 1
