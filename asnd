@@ -87,7 +87,7 @@ verify_config() {
     local subdomain="$1"
     local token="$2"
     
-    echo "Verifying configuration with AssetSonar..."
+    echo "Verifying configuration with AssetSonar..." >&2
     
     # Check for existing device_id
     local existing_device_id
@@ -102,7 +102,7 @@ verify_config() {
     local json_payload
     if [[ -n "$existing_device_id" ]]; then
         json_payload="{\"nd_access_token\": \"$token\", \"device_id\": \"$existing_device_id\"}"
-        echo "Using existing device_id: $existing_device_id"
+        echo "Using existing device_id: $existing_device_id" >&2
     else
         json_payload="{\"nd_access_token\": \"$token\"}"
     fi
@@ -111,6 +111,7 @@ verify_config() {
     local temp_file=$(mktemp)
     response_code=$(curl -s -w "%{http_code}" \
         -X POST \
+        -H "Content-Type: application/json" \
         -d "$json_payload" \
         -o "$temp_file" \
         "$url")
@@ -121,17 +122,17 @@ verify_config() {
         device_id=$(cat "$temp_file" | grep -o '"device_id"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
         
         if [[ -n "$device_id" ]]; then
-            echo "Configuration verified successfully! Device ID: $device_id"
+            echo "Configuration verified successfully! Device ID: $device_id" >&2
             echo "$device_id"  # Return device_id for saving
             rm -f "$temp_file"
             return 0
         else
-            echo "Configuration verification failed: No device_id in response"
+            echo "Configuration verification failed: No device_id in response" >&2
             rm -f "$temp_file"
             return 1
         fi
     else
-        echo "Configuration verification failed (HTTP $response_code)"
+        echo "Configuration verification failed (HTTP $response_code)" >&2
         rm -f "$temp_file"
         return 1
     fi
