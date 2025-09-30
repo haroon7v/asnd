@@ -68,6 +68,8 @@ build:
 	cp -r temp-open-audit ./open-audit
 	@echo "Cleaning up temporary repository..."
 	rm -rf temp-open-audit
+	@echo "Installing Open-AudIT dependencies with composer..."
+	cd ./open-audit && composer install --no-dev --optimize-autoloader
 	@echo "Building Open-AudIT setup script with makeself..."
 	makeself \
 		"--tar-extra" \
