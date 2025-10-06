@@ -7,6 +7,74 @@
 # Configuration file path
 CONFIG_FILE="/etc/asnd/config.ini"
 
+# Error log path (best practice location)
+LOG_DIR="/var/log/asnd"
+LOG_FILE="$LOG_DIR/asnd-error.log"
+
+# Enable safer shell behavior for pipelines and tracing of ERR
+set -o pipefail
+set -o errtrace
+set -o nounset
+
+# Ensure log directory exists with secure permissions
+create_log_dir() {
+    if [[ ! -d "$LOG_DIR" ]]; then
+        sudo mkdir -p "$LOG_DIR"
+        sudo chown root:root "$LOG_DIR"
+        sudo chmod 750 "$LOG_DIR"
+        sudo touch "$LOG_FILE"
+        sudo chown root:root "$LOG_FILE"
+        sudo chmod 640 "$LOG_FILE"
+    fi
+}
+
+# Low-level logger appending to LOG_FILE using sudo (file owned by root)
+log_msg() {
+    local level="$1"; shift
+    local ts
+    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local scriptname
+    scriptname=$(basename "$0")
+    local entry="$ts [$level] $scriptname[$$]: $*"
+    # best-effort append (don't fail script if logging fails)
+    echo "$entry" | sudo tee -a "$LOG_FILE" >/dev/null 2>/dev/null || true
+}
+
+# Log a stack trace (caller-based)
+log_stack() {
+    log_msg "TRACE" "Stack trace (most recent call first):"
+    local i=0
+    while caller $i >/dev/null 2>&1; do
+        local line func src
+        read -r line func src <<< "$(caller $i 2>/dev/null || true)"
+        log_msg "TRACE" "  at ${func}() ${src}:${line}"
+        i=$((i+1))
+    done
+}
+
+# Centralized error handler called by trap on ERR
+error_trap() {
+    local exit_code=${1:-$?}
+    local lineno=${2:-0}
+    create_log_dir
+    log_msg "ERROR" "Script exited with status ${exit_code} at line ${lineno}"
+    log_stack
+    echo "An error occurred. See detailed log: $LOG_FILE" >&2
+    exit "${exit_code}"
+}
+trap 'error_trap $? $LINENO' ERR
+
+# Friendly failure helper: logs message and prints user-facing message with log path
+fail() {
+    local msg="$*"
+    create_log_dir
+    log_msg "ERROR" "$msg"
+    log_stack
+    echo "Error: $msg" >&2
+    echo "See detailed log: $LOG_FILE" >&2
+    exit 1
+}
+
 # Function to display help
 show_help() {
     echo "ASND - AssetSonar Network Discovery"
@@ -14,13 +82,15 @@ show_help() {
     echo "Usage: asnd [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
-    echo "  config <subdomain> <token>    Configure ASND with subdomain and token"
-    echo "  init                         Initialize ASND (requires config to be set up)"
-    echo "  --help                       Show this help message"
+    echo "  config                        Interactively configure ASND"
+    echo "  init                          Initialize ASND (requires config to be set up)"
+    echo "  hostname <HOSTNAME>           Set custom AssetSonar hostname (for dev/testing)"
+    echo "  --help                        Show this help message"
     echo ""
     echo "Examples:"
-    echo "  asnd config mysubdomain mytoken123"
+    echo "  asnd config"
     echo "  asnd init"
+    echo "  asnd hostname dev.local:3000"
     echo "  asnd --help"
     echo ""
     echo "AssetSonar Network Discovery is a package used to setup network discovery"
@@ -32,108 +102,169 @@ show_help() {
 
 # Function to create config directory
 create_config_dir() {
-    local config_dir=$(dirname "$CONFIG_FILE")
+    local config_dir
+    config_dir=$(dirname "$CONFIG_FILE")
     if [[ ! -d "$config_dir" ]]; then
-        sudo mkdir -p "$config_dir"
+        if ! sudo mkdir -p "$config_dir"; then
+            fail "Failed to create config directory $config_dir"
+        fi
         sudo chown root:root "$config_dir"
-        sudo chmod 755 "$config_dir"
+        sudo chmod 700 "$config_dir"
     fi
 }
 
-# Function to save configuration
-save_config() {
-    local subdomain="$1"
-    local token="$2"
-    local device_id="$3"
-    
-    create_config_dir
-    
-    # Create INI configuration
-    cat > /tmp/asnd_config.ini << EOF
-[Assetsonar]
-url = https://${subdomain}.assetsonar.com
-tag = ${device_id}
-
-[OpenAudit]
-sync_enabled = true
-url = http://localhost/open-audit/index.php
-username = admin
-password = password
-system_id = ${device_id}
-EOF
-    
-    # Move to final location with proper permissions
-    sudo mv /tmp/asnd_config.ini "$CONFIG_FILE"
-    sudo chown root:root "$CONFIG_FILE"
-    sudo chmod 600 "$CONFIG_FILE"
-    
-    echo "Configuration saved successfully!"
+# Helper to read a key value from config file (uses sudo to read root-owned file)
+read_config_field() {
+    local key="$1"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        sudo awk -F'=' -v k="$key" 'BEGIN{IGNORECASE=1} $1~"^[[:space:]]*"k"[[:space:]]*$"{gsub(/^[ \t]+|[ \t]+$/,"",$2); print $2; exit}' "$CONFIG_FILE" 2>/dev/null
+    fi
 }
 
-# Function to read existing configuration
-read_existing_config() {
+# Function to read existing configuration (returns device_id)
+read_existing_device_id() {
     if [[ -f "$CONFIG_FILE" ]]; then
-        # Extract device_id from INI config (use sudo to read root-owned file)
         local device_id
-        device_id=$(sudo grep -E "^(tag|system_id)[[:space:]]*=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d ' ')
+        device_id=$(sudo grep -E "^(system_id)[[:space:]]*=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d ' ' )
         echo "$device_id"
     else
         echo ""
     fi
 }
 
+# Function to save configuration
+# Usage: save_config <subdomain> <token> <device_id> <oa_password> [custom_hostname]
+save_config() {
+    local subdomain="$1"
+    local token="$2"
+    local device_id="$3"
+    local oa_password="$4"
+    local custom_hostname="${5:-}"
+
+    create_config_dir
+
+    if [[ -z "$oa_password" ]]; then
+        oa_password="password"
+    fi
+
+    # Build URL: prefer subdomain when provided; hostname is stored separately
+    local url
+    if [[ -n "$custom_hostname" ]]; then
+        # If the hostname already includes a scheme, use as-is, otherwise assume https
+        if [[ "$custom_hostname" =~ ^https?:// ]]; then
+            url="${custom_hostname}"
+        else
+            url="https://${custom_hostname}"
+        fi
+    elif [[ -n "$subdomain" ]]; then
+        url="https://${subdomain}.assetsonar.com"
+    else
+        # Fallback: neither subdomain nor custom hostname provided — treat as configuration error
+        fail "No AssetSonar subdomain or custom hostname provided; aborting configuration"
+    fi
+
+    # Create INI configuration (include ND access token)
+    cat > /tmp/asnd_config.ini << EOF
+[Assetsonar]
+url = ${url}
+tag = ${token}
+EOF
+
+    # Include hostname key if a custom hostname was specified
+    if [[ -n "$custom_hostname" ]]; then
+        echo "hostname = ${custom_hostname}" >> /tmp/asnd_config.ini
+    fi
+
+    cat >> /tmp/asnd_config.ini << EOF
+
+[OpenAudit]
+sync_enabled = true
+url = http://localhost/open-audit/index.php
+username = admin
+password = ${oa_password}
+system_id = ${device_id}
+EOF
+
+    if ! sudo mv /tmp/asnd_config.ini "$CONFIG_FILE"; then
+        fail "Failed to move temporary config to $CONFIG_FILE"
+    fi
+    sudo chown root:root "$CONFIG_FILE"
+    sudo chmod 600 "$CONFIG_FILE"
+
+    log_msg "INFO" "Configuration saved to $CONFIG_FILE (device_id=${device_id}, url=${url})"
+    echo "Configuration saved successfully!"
+}
+
 # Function to verify configuration with AssetSonar
+# Usage: verify_config <subdomain> <token> [device_id_override]
+# Returns device_id on stdout when successful, non-zero exit otherwise.
 verify_config() {
     local subdomain="$1"
     local token="$2"
-    
-    echo "Verifying configuration with AssetSonar..." >&2
-    
-    # Check for existing device_id
+    local device_id_override="${3:-}"
+
+    create_log_dir
+    log_msg "INFO" "Verifying configuration with AssetSonar for subdomain=${subdomain}"
+
     local existing_device_id
-    existing_device_id=$(read_existing_config)
-    
-    # Make POST request to verify endpoint
-    local url="https://${subdomain}.assetsonar.com/api/api_integration/verify_network_discovery"
-    local response_code
-    local response_body
-    
-    # Create JSON payload with nd_access_token and optionally device_id
+    if [[ -n "$device_id_override" ]]; then
+        existing_device_id="$device_id_override"
+    else
+        existing_device_id=$(read_existing_device_id)
+    fi
+
+    # If a custom hostname is stored in config, prefer it for API endpoint
+    local custom_host
+    custom_host=$(read_config_field "hostname" || true)
+
+    local base_host
+    if [[ -n "$custom_host" ]]; then
+        if [[ "$custom_host" =~ ^https?:// ]]; then
+            base_host="$custom_host"
+        else
+            base_host="https://${custom_host}"
+        fi
+    else
+        base_host="https://${subdomain}.assetsonar.com"
+    fi
+
+    local url="${base_host}/api/api_integration/validate_network_discovery.api"
+    local temp_file
+    temp_file=$(mktemp) || { log_msg "ERROR" "Failed to create temp file for HTTP response"; echo ""; return 1; }
+
     local json_payload
     if [[ -n "$existing_device_id" ]]; then
         json_payload="{\"nd_access_token\": \"$token\", \"device_id\": \"$existing_device_id\"}"
-        echo "Using existing device_id: $existing_device_id" >&2
+        log_msg "INFO" "Using device_id: $existing_device_id"
     else
         json_payload="{\"nd_access_token\": \"$token\"}"
     fi
-    
-    # Make the request and capture both response code and body
-    local temp_file=$(mktemp)
-    response_code=$(curl -s -w "%{http_code}" \
-        -X POST \
-        -H "Content-Type: application/json" \
-        -d "$json_payload" \
-        -o "$temp_file" \
-        "$url")
-    
+
+    # Perform request; capture HTTP status and body
+    local response_code
+    response_code=$(curl -s -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$json_payload" -o "$temp_file" "$url" 2>/dev/null) || response_code="000"
+
     if [[ "$response_code" == "200" ]]; then
-        # Parse device_id from response
         local device_id
-        device_id=$(cat "$temp_file" | grep -o '"device_id"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
-        
+        device_id=$(grep -o '"device_id"[[:space:]]*:[[:space:]]*"[^"]*"' "$temp_file" 2>/dev/null | cut -d'"' -f4 || true)
+
         if [[ -n "$device_id" ]]; then
-            echo "Configuration verified successfully! Device ID: $device_id" >&2
-            echo "$device_id"  # Return device_id for saving
+            log_msg "INFO" "Configuration verified successfully. device_id=${device_id}"
             rm -f "$temp_file"
+            echo "$device_id"
             return 0
         else
-            echo "Configuration verification failed: No device_id in response" >&2
+            log_msg "ERROR" "Configuration verification succeeded (HTTP 200) but response contains no device_id. Response body:"
+            while IFS= read -r line; do log_msg "ERROR" "$line"; done < "$temp_file"
             rm -f "$temp_file"
+            echo ""
             return 1
         fi
     else
-        echo "Configuration verification failed (HTTP $response_code)" >&2
+        log_msg "ERROR" "Configuration verification failed (HTTP ${response_code}). Response body:"
+        while IFS= read -r line; do log_msg "ERROR" "$line"; done < "$temp_file"
         rm -f "$temp_file"
+        echo ""
         return 1
     fi
 }
@@ -141,112 +272,206 @@ verify_config() {
 # Function to check if config file exists and is valid
 check_config_exists() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
-        echo "Error: Configuration file not found at $CONFIG_FILE"
-        echo "Please run 'asnd config <subdomain> <token>' first to configure ASND"
+        log_msg "ERROR" "Configuration file not found at $CONFIG_FILE"
+        echo "Error: Configuration file not found at $CONFIG_FILE" >&2
+        echo "Please run 'asnd config' first to configure ASND" >&2
+        echo "See detailed log: $LOG_FILE" >&2
         return 1
     fi
-    
-    # Basic validation - check if file has required sections (use sudo to read root-owned file)
+
     if ! sudo grep -q "^\[Assetsonar\]" "$CONFIG_FILE" || ! sudo grep -q "^\[OpenAudit\]" "$CONFIG_FILE"; then
-        echo "Error: Configuration file is invalid or corrupted"
-        echo "Please run 'asnd config <subdomain> <token>' to reconfigure ASND"
+        log_msg "ERROR" "Configuration file is invalid or corrupted at $CONFIG_FILE"
+        echo "Error: Configuration file is invalid or corrupted" >&2
+        echo "Please run 'asnd config' to reconfigure ASND" >&2
+        echo "See detailed log: $LOG_FILE" >&2
         return 1
     fi
-    
+
     return 0
 }
 
 # Function to handle init command
 handle_init() {
     echo "Initializing ASND..."
-    
-    # Check if config file exists and is valid
+
     if ! check_config_exists; then
         exit 1
     fi
-    
+
     echo "Configuration file found and valid"
-    
-    # Setup OpenAudit
+
     echo "Setting up OpenAudit..."
     if [[ -f "/opt/asnd-setup/open-audit-setup.run" ]]; then
         echo "Running OpenAudit setup script..."
         if bash /opt/asnd-setup/open-audit-setup.run; then
             echo "OpenAudit setup completed successfully"
+            log_msg "INFO" "OpenAudit setup completed"
         else
-            echo "Error: OpenAudit setup failed with non-zero exit status"
-            exit 1
+            fail "OpenAudit setup failed with non-zero exit status"
         fi
     else
-        echo "Error: OpenAudit setup script (open-audit-setup.run) not found"
-        exit 1
+        fail "OpenAudit setup script (open-audit-setup.run) not found"
     fi
-    
-    # Setup AssetSonar connector for OpenAudit
+
     echo "Setting up AssetSonar connector for OpenAudit..."
-    
-    # Setup AssetSonar connector (files already installed by package)
-    echo "Setting up AssetSonar connector..."
-    
-    # Check if connector files exist (installed by package)
+    log_msg "INFO" "Setting up AssetSonar connector for OpenAudit"
+
     if [[ ! -d "/opt/assetsonar-connector" ]]; then
-        echo "Error: AssetSonar connector not found. Please reinstall the package."
-        exit 1
+        fail "AssetSonar connector not found at /opt/assetsonar-connector. Please reinstall the package."
     fi
-    
-    # Remove existing cron jobs
+
     echo "Removing existing cron jobs..."
-    crontab -l 2>/dev/null | grep -v '/opt/assetsonar-connector' | crontab -
-    
-    # Setup cron jobs
+    crontab -l 2>/dev/null | grep -v '/opt/assetsonar-connector' | crontab - || log_msg "WARN" "Failed to update crontab while removing existing AssetSonar entries"
+
     echo "Setting up cron jobs..."
     command_sync="/opt/assetsonar-connector/bin/assetsonar_syncer -s"
     command_execute="/opt/assetsonar-connector/bin/assetsonar_syncer -e"
-    
+
     # Add sync cron job (every hour)
-    eval "crontab -l 2>/dev/null | { cat; echo '0 * * * * $command_sync'; } | crontab -"
-    
+    eval "crontab -l 2>/dev/null | { cat; echo '0 * * * * $command_sync'; } | crontab -" || log_msg "WARN" "Failed to add sync cron job"
+
     # Add execute cron job (every hour)
-    eval "crontab -l 2>/dev/null | { cat; echo '0 * * * * $command_execute'; } | crontab -"
-    
-    echo "AssetSonar connector setup completed successfully"
+    eval "crontab -l 2>/dev/null | { cat; echo '0 * * * * $command_execute'; } | crontab -" || log_msg "WARN" "Failed to add execute cron job"
+
+    log_msg "INFO" "AssetSonar connector setup completed"
     echo "ASND initialization completed successfully"
 }
 
-# Function to handle config command
+# Function to handle config command (interactive)
 handle_config() {
-    if [[ $# -lt 2 ]]; then
-        echo "Error: config command requires subdomain and token"
-        echo "Usage: asnd config <subdomain> <token>"
-        exit 1
-    fi
-    
-    local subdomain="$1"
-    local token="$2"
-    
-    # Validate subdomain (basic validation)
-    if [[ ! "$subdomain" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$ ]]; then
-        echo "Error: Invalid subdomain format"
-        exit 1
-    fi
-    
-    # Validate token (basic validation - not empty)
-    if [[ -z "$token" ]]; then
-        echo "Error: Token cannot be empty"
-        exit 1
-    fi
-    
-    # Verify configuration and capture device_id
-    local device_id
-    device_id=$(verify_config "$subdomain" "$token")
-    local verify_exit_code=$?
-    
-    if [[ $verify_exit_code -eq 0 && -n "$device_id" ]]; then
-        save_config "$subdomain" "$token" "$device_id"
+    local existing_url existing_subdomain existing_device_id existing_oa_password existing_nd_token host
+    existing_url=$(read_config_field "url")
+    if [[ -n "$existing_url" ]]; then
+        existing_subdomain=$(echo "$existing_url" | sed -n 's#https://\([^.]*\)\.assetsonar\.com.*#\1#p')
     else
-        echo "Configuration discarded due to verification failure"
+        existing_subdomain=""
+    fi
+    existing_device_id=$(read_existing_device_id)
+    existing_oa_password=$(read_config_field "password")
+    if [[ -z "$existing_oa_password" ]]; then
+        existing_oa_password="password"
+    fi
+    existing_nd_token=$(read_config_field "tag")
+    existing_host=$(read_config_field "host")
+
+    if [[ -n "$existing_subdomain" ]]; then
+        read -p "AssetSonar subdomain [${existing_subdomain}]: " subdomain_input
+        if [[ -z "$subdomain_input" ]]; then
+            subdomain="$existing_subdomain"
+        else
+            subdomain="$subdomain_input"
+        fi
+    else
+        while true; do
+            read -p "AssetSonar subdomain: " subdomain
+            if [[ -n "$subdomain" ]]; then
+                break
+            fi
+            echo "Subdomain cannot be empty."
+        done
+    fi
+
+    if [[ ! "$subdomain" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$ ]]; then
+        fail "Invalid subdomain format. Example: if your AssetSonar account is at https://mycompany.assetsonar.com, the subdomain is 'mycompany'."
+    fi
+
+    if [[ -n "$existing_nd_token" ]]; then
+        read -s -p "AssetSonar ND Access Token (press Enter to keep existing): " token_input
+        echo
+        if [[ -z "$token_input" ]]; then
+            token="$existing_nd_token"
+        else
+            token="$token_input"
+        fi
+    else
+        while true; do
+            read -s -p "AssetSonar ND Access Token: " token
+            echo
+            if [[ -n "$token" ]]; then
+                break
+            fi
+            echo "Token cannot be empty."
+        done
+    fi
+
+    if [[ -n "$existing_device_id" ]]; then
+        read -p "System ID [${existing_device_id}]: " device_id_input
+        if [[ -z "$device_id_input" ]]; then
+            device_id="$existing_device_id"
+        else
+            device_id="$device_id_input"
+        fi
+    else
+        read -p "System ID (press Enter to auto-generate): " device_id_input
+        if [[ -n "$device_id_input" ]]; then
+            device_id="$device_id_input"
+        else
+            device_id=""
+        fi
+    fi
+
+    read -p "OpenAudit password [${existing_oa_password}]: " oa_password_input
+    if [[ -z "$oa_password_input" ]]; then
+        oa_password="$existing_oa_password"
+    else
+        oa_password="$oa_password_input"
+    fi
+
+    local verified_device_id
+    if [[ -n "${device_id:-}" ]]; then
+        verified_device_id=$(verify_config "$subdomain" "$token" "$device_id")
+    else
+        verified_device_id=$(verify_config "$subdomain" "$token")
+    fi
+    local verify_exit_code=$?
+
+    if [[ $verify_exit_code -eq 0 && -n "$verified_device_id" ]]; then
+        save_config "$subdomain" "$token" "$verified_device_id" "$oa_password" "$existing_host"
+    else
+        create_log_dir
+        log_msg "ERROR" "Configuration verification failed for subdomain=${subdomain}"
+        echo "Configuration verification failed. No changes were saved." >&2
+        echo "See detailed log: $LOG_FILE" >&2
+        echo "Action items:" >&2
+        echo "  1) Verify the AssetSonar subdomain is correct: '${subdomain}' (example: mycompany)" >&2
+        echo "  2) Verify the ND Access Token is correct and not expired" >&2
+        echo "  3) Ensure network connectivity to https://${subdomain}.assetsonar.com from this host" >&2
+        echo "  4) Inspect the log file for additional error details: $LOG_FILE" >&2
+        echo "  5) Retry: run 'asnd config' to attempt configuration again" >&2
+        echo "  6) If the problem persists, contact AssetSonar support: support@assetsonar.com" >&2
         exit 1
     fi
+}
+
+# New: handle hostname command to store a custom hostname for dev/test environments
+handle_hostname() {
+    local host="${1:-}"
+    if [[ -z "${host:-}" ]]; then
+        fail "No hostname provided. Usage: asnd hostname <HOSTNAME>"
+    fi
+    if [[ "$host" =~ [[:space:]] ]]; then
+        fail "Hostname must not contain spaces"
+    fi
+
+    # Read existing fields so we can preserve them
+    local existing_url existing_subdomain existing_device_id existing_oa_password existing_nd_token
+    existing_url=$(read_config_field "url")
+    if [[ -n "$existing_url" ]]; then
+        existing_subdomain=$(echo "$existing_url" | sed -n 's#https://\([^.]*\)\.assetsonar\.com.*#\1#p')
+    else
+        existing_subdomain=""
+    fi
+    existing_device_id=$(read_existing_device_id)
+    existing_oa_password=$(read_config_field "password")
+    if [[ -z "$existing_oa_password" ]]; then
+        existing_oa_password="password"
+    fi
+    existing_nd_token=$(read_config_field "tag")
+
+    # Save config preserving existing values but add/update hostname
+    save_config "$existing_subdomain" "$existing_nd_token" "$existing_device_id" "$existing_oa_password" "$host"
+    echo "Custom hostname saved to $CONFIG_FILE: $host"
+    log_msg "INFO" "Custom hostname set to ${host}"
 }
 
 # Parse command line arguments
@@ -263,6 +488,10 @@ case "$1" in
     init)
         shift
         handle_init "$@"
+        ;;
+    hostname)
+        shift
+        handle_hostname "$@"
         ;;
     --help)
         show_help

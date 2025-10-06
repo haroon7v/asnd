@@ -6,6 +6,23 @@ AssetSonar Network Discovery is a package used to setup network discovery server
 
 ## Building the Debian Package
 
+### Install Build Dependencies
+```bash
+sudo apt install debhelper build-essential devscripts git makeself
+```
+
+### Build Open Audit
+In your local open audit repository, make sure you have latest code and all dependencies are installed with composer.
+
+```bash
+# In open-audit local repo (latest code)
+composer install --no-dev --optimize-autoloader
+# OR
+composer update --no-dev --optimize-autoloader
+```
+
+### Create Build
+
 To build the Debian package, simply run:
 
 ```bash
@@ -14,10 +31,9 @@ make
 
 This will:
 
-1. Fetch the latest AssetSonar connector from the git repository
-2. Create a `.deb` package in the `build/` directory
-
-**Note**: The build process automatically fetches the `assetsonar-connector` directory from the master branch of the [open_audit_linux_connector](https://github.com/haroon7v/open_audit_linux_connector) repository.
+1. Ask for local paths of connector app dir and open audit code dir.
+2. Use the latest AssetSonar connector app and Open Audit code from your local repositories.
+3. Create a `.deb` package in the `build/` directory.
 
 ### Build Requirements
 

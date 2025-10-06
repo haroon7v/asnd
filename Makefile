@@ -26,18 +26,23 @@ build:
 	mkdir -p $(BUILD_DIR)
 	@echo "Building Debian package for $(PACKAGE_NAME) version $(VERSION)"
 	
-	# Fetch AssetSonar connector from git repository
-	@echo "Fetching AssetSonar connector from git repository..."
-	@if [ -d "assetsonar-connector" ]; then \
-		echo "Removing existing assetsonar-connector directory..."; \
-		rm -rf assetsonar-connector; \
+	# Ask for local AssetSonar connector path.
+	@echo "Please provide the path to your local AssetSonar connector repository."
+	@echo "Make sure the directory you provide contains the latest code you want included in the build."
+	@printf "Connector path: "; \
+	read CONN_PATH; \
+	if [ -z "$$CONN_PATH" ]; then \
+		echo "No path provided. Aborting."; \
+		exit 1; \
+	fi; \
+	if [ -d "$$CONN_PATH/assetsonar-connector" ]; then \
+		echo "Using $$CONN_PATH/assetsonar-connector"; \
+		if [ -d "assetsonar-connector" ]; then rm -rf assetsonar-connector; fi; \
+		cp -r "$$CONN_PATH/assetsonar-connector" ./; \
+	else \
+		echo "Path $$CONN_PATH not found or not a directory. Aborting."; \
+		exit 1; \
 	fi
-	@echo "Cloning repository..."
-	git clone git@github.com:haroon7v/open_audit_linux_connector.git temp-repo
-	@echo "Extracting assetsonar-connector from master branch..."
-	cp -r temp-repo/assetsonar-connector ./
-	@echo "Cleaning up temporary repository..."
-	rm -rf temp-repo
 	
 	# Create package directory
 	mkdir -p $(DEB_DIR)/usr/bin
@@ -62,21 +67,37 @@ build:
 		echo "Removing existing open-audit directory..."; \
 		rm -rf open-audit; \
 	fi
-	@echo "Cloning Open-AudIT repository..."
-	sh -c "git clone -b feature/46142_network_discovery_setup_improvements https://github.com/bk-az/open-audit.git temp-open-audit"
-	@echo "Extracting open-audit from feature branch..."
-	cp -r temp-open-audit ./open-audit
-	@echo "Cleaning up temporary repository..."
-	rm -rf temp-open-audit
+	@echo "Please provide the path to your local Open-AudIT repository."
+	@echo "Make sure the directory you provide contains the latest code you want included in the build."
+	@printf "Open-AudIT path: "; \
+	read OPEN_PATH; \
+	if [ -z "$$OPEN_PATH" ]; then \
+		echo "No path provided. Aborting."; \
+		exit 1; \
+	fi; \
+	if [ -d "$$OPEN_PATH" ]; then \
+		echo "Using $$OPEN_PATH"; \
+		if [ -d "open-audit" ]; then rm -rf open-audit; fi; \
+		cp -r "$$OPEN_PATH" ./open-audit; \
+	else \
+		echo "Path $$OPEN_PATH not found or not a directory. Aborting."; \
+		exit 1; \
+	fi
 	@echo "Installing Open-AudIT dependencies with composer..."
 	cd ./open-audit && (composer install --no-dev --optimize-autoloader || composer update --no-dev --optimize-autoloader)
 	@echo "Building Open-AudIT setup script with makeself..."
+	@printf "Open-AudIT version (e.g. 5.6.5): "; \
+	read OPEN_VER; \
+	if [ -z "$$OPEN_VER" ]; then \
+		echo "No version provided. Aborting."; \
+		exit 1; \
+	fi; \
 	makeself \
 		"--tar-extra" \
 		"--exclude=.git --exclude=.fuse* --exclude=.phpunit.result.cache --exclude=._spark --exclude=.gitignore" \
 		"./open-audit" \
 		"$(DEB_DIR)/opt/asnd-setup/open-audit-setup.run" \
-		"Open-AudIT 5.6.5" \
+		"Open-AudIT $$OPEN_VER" \
 		"./install.sh"
 	@echo "Open-AudIT setup script built successfully"
 	
