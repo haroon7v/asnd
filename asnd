@@ -84,13 +84,11 @@ show_help() {
     echo "Commands:"
     echo "  config                        Interactively configure ASND"
     echo "  init                          Initialize ASND (requires config to be set up)"
-    echo "  hostname <HOSTNAME>           Set custom AssetSonar hostname (for dev/testing)"
     echo "  --help                        Show this help message"
     echo ""
     echo "Examples:"
     echo "  asnd config"
     echo "  asnd init"
-    echo "  asnd hostname dev.local:3000"
     echo "  asnd --help"
     echo ""
     echo "AssetSonar Network Discovery is a package used to setup network discovery"
@@ -133,13 +131,12 @@ read_existing_device_id() {
 }
 
 # Function to save configuration
-# Usage: save_config <subdomain> <token> <device_id> <oa_password> [custom_hostname]
+# Usage: save_config <subdomain> <token> <device_id> <oa_password>
 save_config() {
     local subdomain="$1"
     local token="$2"
     local device_id="$3"
     local oa_password="$4"
-    local custom_hostname="${5:-}"
 
     create_config_dir
 
@@ -147,20 +144,12 @@ save_config() {
         oa_password="password"
     fi
 
-    # Build URL: prefer subdomain when provided; hostname is stored separately
+    # Build URL from subdomain
     local url
-    if [[ -n "$custom_hostname" ]]; then
-        # If the hostname already includes a scheme, use as-is, otherwise assume https
-        if [[ "$custom_hostname" =~ ^https?:// ]]; then
-            url="${custom_hostname}"
-        else
-            url="https://${custom_hostname}"
-        fi
-    elif [[ -n "$subdomain" ]]; then
+    if [[ -n "$subdomain" ]]; then
         url="https://${subdomain}.assetsonar.com"
     else
-        # Fallback: neither subdomain nor custom hostname provided — treat as configuration error
-        fail "No AssetSonar subdomain or custom hostname provided; aborting configuration"
+        fail "No AssetSonar subdomain provided; aborting configuration"
     fi
 
     # Create INI configuration (include ND access token)
@@ -169,11 +158,6 @@ save_config() {
 url = ${url}
 tag = ${token}
 EOF
-
-    # Include hostname key if a custom hostname was specified
-    if [[ -n "$custom_hostname" ]]; then
-        echo "hostname = ${custom_hostname}" >> /tmp/asnd_config.ini
-    fi
 
     cat >> /tmp/asnd_config.ini << EOF
 
@@ -213,20 +197,7 @@ verify_config() {
         existing_device_id=$(read_existing_device_id)
     fi
 
-    # If a custom hostname is stored in config, prefer it for API endpoint
-    local custom_host
-    custom_host=$(read_config_field "hostname" || true)
-
-    local base_host
-    if [[ -n "$custom_host" ]]; then
-        if [[ "$custom_host" =~ ^https?:// ]]; then
-            base_host="$custom_host"
-        else
-            base_host="https://${custom_host}"
-        fi
-    else
-        base_host="https://${subdomain}.assetsonar.com"
-    fi
+    local base_host="https://${subdomain}.assetsonar.com"
 
     local url="${base_host}/api/api_integration/validate_network_discovery.api"
     local temp_file
@@ -339,7 +310,7 @@ handle_init() {
 
 # Function to handle config command (interactive)
 handle_config() {
-    local existing_url existing_subdomain existing_device_id existing_oa_password existing_nd_token host
+    local existing_url existing_subdomain existing_device_id existing_oa_password existing_nd_token
     existing_url=$(read_config_field "url")
     if [[ -n "$existing_url" ]]; then
         existing_subdomain=$(echo "$existing_url" | sed -n 's#https://\([^.]*\)\.assetsonar\.com.*#\1#p')
@@ -352,7 +323,6 @@ handle_config() {
         existing_oa_password="password"
     fi
     existing_nd_token=$(read_config_field "tag")
-    existing_host=$(read_config_field "host")
 
     if [[ -n "$existing_subdomain" ]]; then
         read -p "AssetSonar subdomain [${existing_subdomain}]: " subdomain_input
@@ -426,7 +396,7 @@ handle_config() {
     local verify_exit_code=$?
 
     if [[ $verify_exit_code -eq 0 && -n "$verified_device_id" ]]; then
-        save_config "$subdomain" "$token" "$verified_device_id" "$oa_password" "$existing_host"
+        save_config "$subdomain" "$token" "$verified_device_id" "$oa_password"
     else
         create_log_dir
         log_msg "ERROR" "Configuration verification failed for subdomain=${subdomain}"
@@ -443,36 +413,6 @@ handle_config() {
     fi
 }
 
-# New: handle hostname command to store a custom hostname for dev/test environments
-handle_hostname() {
-    local host="${1:-}"
-    if [[ -z "${host:-}" ]]; then
-        fail "No hostname provided. Usage: asnd hostname <HOSTNAME>"
-    fi
-    if [[ "$host" =~ [[:space:]] ]]; then
-        fail "Hostname must not contain spaces"
-    fi
-
-    # Read existing fields so we can preserve them
-    local existing_url existing_subdomain existing_device_id existing_oa_password existing_nd_token
-    existing_url=$(read_config_field "url")
-    if [[ -n "$existing_url" ]]; then
-        existing_subdomain=$(echo "$existing_url" | sed -n 's#https://\([^.]*\)\.assetsonar\.com.*#\1#p')
-    else
-        existing_subdomain=""
-    fi
-    existing_device_id=$(read_existing_device_id)
-    existing_oa_password=$(read_config_field "password")
-    if [[ -z "$existing_oa_password" ]]; then
-        existing_oa_password="password"
-    fi
-    existing_nd_token=$(read_config_field "tag")
-
-    # Save config preserving existing values but add/update hostname
-    save_config "$existing_subdomain" "$existing_nd_token" "$existing_device_id" "$existing_oa_password" "$host"
-    echo "Custom hostname saved to $CONFIG_FILE: $host"
-    log_msg "INFO" "Custom hostname set to ${host}"
-}
 
 # Parse command line arguments
 if [[ $# -eq 0 ]]; then
@@ -488,10 +428,6 @@ case "$1" in
     init)
         shift
         handle_init "$@"
-        ;;
-    hostname)
-        shift
-        handle_hostname "$@"
         ;;
     --help)
         show_help
