@@ -144,6 +144,8 @@ build:
 	# Build the .deb package (requires dpkg-deb, available on Linux/Debian systems)
 	@if command -v dpkg-deb >/dev/null 2>&1; then \
 		dpkg-deb --build $(DEB_DIR) $(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)_all.deb; \
+		# Fix permissions so _apt user can access the package during installation \
+		chmod 644 $(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)_all.deb; \
 	else \
 		echo "Error: dpkg-deb not found. This tool is required to build Debian packages."; \
 		echo "Please run this on a Linux/Debian system or install dpkg-deb."; \
