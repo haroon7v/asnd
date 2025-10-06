@@ -8,7 +8,7 @@ Homepage: https://github.com/haroon7v/asnd
 Package: asnd
 Version: 1.0.0-1
 Architecture: all
-Depends: ruby-full, build-essential, bundler, curl, cron
+Depends: ruby-full, build-essential, curl, cron
 Description: ASND - AssetSonar Network Discovery
   AssetSonar Network Discovery is a package used to setup network discovery
   server on any on-premises server. It communicates with AssetSonar to sync

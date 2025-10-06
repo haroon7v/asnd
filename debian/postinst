@@ -4,6 +4,10 @@ set -e
 
 case "$1" in
     configure)
+        # Install bundler gem
+        echo "Installing bundler gem..."
+        gem install bundler
+        
         # Make sure the binary is executable
         chmod +x /usr/bin/asnd
         
@@ -11,12 +15,18 @@ case "$1" in
         chmod +x /opt/assetsonar-connector/scripts/*.sh
         chmod +x /opt/assetsonar-connector/bin/assetsonar_syncer
         
+        # Install AssetSonar connector Ruby dependencies
+        echo "Installing AssetSonar connector Ruby dependencies..."
+        cd /opt/assetsonar-connector && bundle install
+        
         # Create required directories
         mkdir -p /var/lib/assetsonar-connector
         mkdir -p /var/log/assetsonar-connector
         
         echo "ASND command has been installed successfully."
         echo "AssetSonar connector files have been installed to /opt/assetsonar-connector/"
+        echo "Bundler gem has been installed."
+        echo "AssetSonar connector Ruby dependencies have been installed."
         echo "You can now use 'asnd' from anywhere in your terminal."
         echo "Run 'asnd init' to complete the setup process."
         ;;
