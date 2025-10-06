@@ -11,10 +11,29 @@ CONFIG_FILE="/etc/asnd/config.ini"
 LOG_DIR="/var/log/asnd"
 LOG_FILE="$LOG_DIR/asnd-error.log"
 
+# Environment variable (defaults to production)
+ENV="${ENV:-production}"
+
 # Enable safer shell behavior for pipelines and tracing of ERR
 set -o pipefail
 set -o errtrace
 set -o nounset
+
+# Function to get base URL based on environment
+get_base_url() {
+    local subdomain="$1"
+    case "$ENV" in
+        "dev")
+            echo "https://${subdomain}.lvh.me:3000"
+            ;;
+        "staging")
+            echo "https://${subdomain}.ez-oi.com"
+            ;;
+        *)
+            echo "https://${subdomain}.assetsonar.com"
+            ;;
+    esac
+}
 
 # Ensure log directory exists with secure permissions
 create_log_dir() {
@@ -147,7 +166,7 @@ save_config() {
     # Build URL from subdomain
     local url
     if [[ -n "$subdomain" ]]; then
-        url="https://${subdomain}.assetsonar.com"
+        url=$(get_base_url "$subdomain")
     else
         fail "No AssetSonar subdomain provided; aborting configuration"
     fi
@@ -197,7 +216,8 @@ verify_config() {
         existing_device_id=$(read_existing_device_id)
     fi
 
-    local base_host="https://${subdomain}.assetsonar.com"
+    local base_host
+    base_host=$(get_base_url "$subdomain")
 
     local url="${base_host}/api/api_integration/validate_network_discovery.api"
     local temp_file
@@ -342,7 +362,19 @@ handle_config() {
     fi
 
     if [[ ! "$subdomain" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$ ]]; then
-        fail "Invalid subdomain format. Example: if your AssetSonar account is at https://mycompany.assetsonar.com, the subdomain is 'mycompany'."
+        local example_url
+        case "$ENV" in
+            "dev")
+                example_url="mycompany.lvh.me:3000"
+                ;;
+            "staging")
+                example_url="mycompany.ez-oi.com"
+                ;;
+            *)
+                example_url="mycompany.assetsonar.com"
+                ;;
+        esac
+        fail "Invalid subdomain format. Example: if your AssetSonar account is at https://${example_url}, the subdomain is 'mycompany'."
     fi
 
     if [[ -n "$existing_nd_token" ]]; then
@@ -405,7 +437,7 @@ handle_config() {
         echo "Action items:" >&2
         echo "  1) Verify the AssetSonar subdomain is correct: '${subdomain}' (example: mycompany)" >&2
         echo "  2) Verify the ND Access Token is correct and not expired" >&2
-        echo "  3) Ensure network connectivity to https://${subdomain}.assetsonar.com from this host" >&2
+        echo "  3) Ensure network connectivity to $(get_base_url "$subdomain") from this host" >&2
         echo "  4) Inspect the log file for additional error details: $LOG_FILE" >&2
         echo "  5) Retry: run 'asnd config' to attempt configuration again" >&2
         echo "  6) If the problem persists, contact AssetSonar support: support@assetsonar.com" >&2

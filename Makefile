@@ -5,6 +5,9 @@ PACKAGE_NAME = asnd
 VERSION = 1.0.0
 DEB_VERSION = 1
 
+# Environment variable (defaults to production)
+ENV ?= production
+
 # Build directory
 BUILD_DIR = build
 DEB_DIR = $(BUILD_DIR)/$(PACKAGE_NAME)_$(VERSION)-$(DEB_VERSION)
@@ -25,6 +28,7 @@ clean:
 build:
 	mkdir -p $(BUILD_DIR)
 	@echo "Building Debian package for $(PACKAGE_NAME) version $(VERSION)"
+	@echo "Environment: $(ENV)"
 	
 	# Ask for local AssetSonar connector path.
 	@echo "Please provide the path to your local AssetSonar connector repository."
@@ -54,6 +58,8 @@ build:
 	
 	# Copy files
 	cp asnd $(DEB_DIR)/usr/bin/
+	# Set environment variable in the script for the build
+	sed -i 's/^ENV=.*/ENV=$(ENV)/' $(DEB_DIR)/usr/bin/asnd
 	cp debian/control $(DEB_DIR)/DEBIAN/
 	cp debian/postinst $(DEB_DIR)/DEBIAN/
 	cp debian/prerm $(DEB_DIR)/DEBIAN/
