@@ -8,6 +8,9 @@ case "$1" in
         echo "Installing bundler gem..."
         gem install bundler
         
+        # Update PATH to include Ruby gem binaries
+        export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+        
         # Make sure the binary is executable
         chmod +x /usr/bin/asnd
         
@@ -17,7 +20,30 @@ case "$1" in
         
         # Install AssetSonar connector Ruby dependencies
         echo "Installing AssetSonar connector Ruby dependencies..."
-        cd /opt/assetsonar-connector && bundle install
+        cd /opt/assetsonar-connector
+        
+        # Try to find bundle command with fallback options
+        BUNDLE_CMD=""
+        if command -v bundle >/dev/null 2>&1; then
+            BUNDLE_CMD="bundle"
+        elif [ -f "/usr/local/bin/bundle" ]; then
+            BUNDLE_CMD="/usr/local/bin/bundle"
+        elif [ -f "/usr/bin/bundle" ]; then
+            BUNDLE_CMD="/usr/bin/bundle"
+        else
+            echo "Warning: bundle command not found, trying to install dependencies with gem directly..."
+            # Fallback: install dependencies directly with gem
+            if [ -f "Gemfile" ]; then
+                gem install $(grep -E "^gem" Gemfile | sed 's/gem [''"]//g' | sed 's/[''"].*//g' | tr '\n' ' ')
+            fi
+        fi
+        
+        if [ -n "$BUNDLE_CMD" ]; then
+            echo "Using bundle command: $BUNDLE_CMD"
+            $BUNDLE_CMD install
+        else
+            echo "Bundle command not available, skipping bundle install"
+        fi
         
         # Create required directories
         mkdir -p /var/lib/assetsonar-connector
