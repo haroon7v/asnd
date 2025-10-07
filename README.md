@@ -7,11 +7,13 @@ AssetSonar Network Discovery is a package used to setup network discovery server
 ## Building the Debian Package
 
 ### Install Build Dependencies
+
 ```bash
 sudo apt install debhelper build-essential devscripts git makeself
 ```
 
 ### Build Open Audit
+
 In your local open audit repository, make sure you have latest code and all dependencies are installed with composer.
 
 ```bash
@@ -114,19 +116,19 @@ The configuration process:
 3. Makes a POST request to `https://{subdomain}.assetsonar.com/api/api_integration/verify_network_discovery` with `nd_access_token` in request body
 4. If existing device_id is found, includes it in the request body as well
 5. Parses the `device_id` from the successful response (HTTP 200)
-6. Saves the configuration to `/etc/asnd/config.ini` if verification succeeds
+6. Saves the configuration to `/var/lib/assetsonar-connector/config.ini` if verification succeeds
 7. Discards the configuration if verification fails or no device_id is returned
 
-**Note**: Configuration requires sudo privileges to write to `/etc/asnd/config.ini`.
+**Note**: Configuration requires sudo privileges to write to `/var/lib/assetsonar-connector/config.ini`.
 
 ### Configuration File Structure
 
-The configuration file `/etc/asnd/config.ini` contains:
+The configuration file `/var/lib/assetsonar-connector/config.ini` contains:
 
 ```ini
 [Assetsonar]
 url = https://your-subdomain.assetsonar.com
-tag = returned-device-id
+tag = network-discovery-access-token
 
 [OpenAudit]
 sync_enabled = true

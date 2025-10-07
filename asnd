@@ -5,7 +5,7 @@
 # Maintainer: EZO AssetSonar <support@assetsonar.com>
 
 # Configuration file path
-CONFIG_FILE="/etc/asnd/config.ini"
+CONFIG_FILE="/var/lib/assetsonar-connector/config.ini"
 
 # Error log path (best practice location)
 LOG_DIR="/var/log/asnd"

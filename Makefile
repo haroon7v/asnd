@@ -51,7 +51,6 @@ build:
 	# Create package directory
 	mkdir -p $(DEB_DIR)/usr/bin
 	mkdir -p $(DEB_DIR)/usr/share/man/man1
-	mkdir -p $(DEB_DIR)/etc/asnd
 	mkdir -p $(DEB_DIR)/opt/assetsonar-connector
 	mkdir -p $(DEB_DIR)/opt/asnd-setup
 	mkdir -p $(DEB_DIR)/DEBIAN
@@ -130,7 +129,7 @@ build:
 	@echo "AssetSonar before saving." >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH FILES" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".TP" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
-	@echo "/etc/asnd/config.ini" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
+	@echo "/var/lib/assetsonar-connector/config.ini" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "Configuration file containing Assetsonar and OpenAudit settings" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo ".SH AUTHOR" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
 	@echo "EZO AssetSonar <support@assetsonar.com>" >> $(DEB_DIR)/usr/share/man/man1/asnd.1
@@ -140,6 +139,10 @@ build:
 	chmod 644 $(DEB_DIR)/usr/share/man/man1/asnd.1
 	chmod 755 $(DEB_DIR)/DEBIAN/postinst
 	chmod 755 $(DEB_DIR)/DEBIAN/prerm
+	
+	# Set permissions for AssetSonar connector files
+	find $(DEB_DIR)/opt/assetsonar-connector/scripts -name "*.sh" -exec chmod 755 {} \;
+	chmod 755 $(DEB_DIR)/opt/assetsonar-connector/bin/assetsonar_syncer
 	
 	# Build the .deb package (requires dpkg-deb, available on Linux/Debian systems)
 	@if command -v dpkg-deb >/dev/null 2>&1; then \
