@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        echo "ASND command has been removed from the system."
+        ;;
+esac
+
+exit 0

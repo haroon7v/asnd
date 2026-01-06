@@ -1,0 +1,45 @@
+# AssetSonar connector (fetched from git repo during build)
+assetsonar-connector/
+
+# build
+build/
+
+# Debian package files
+*.deb
+*.dsc
+*.tar.gz
+*.tar.xz
+*.changes
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
+
+# Log files
+*.log
+
+# Package build artifacts
+debian/files
+debian/.debhelper/
+debian/debhelper.log
